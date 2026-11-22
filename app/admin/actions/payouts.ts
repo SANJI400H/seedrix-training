@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { checkPayout } from "@/lib/ledger/balances";
+import { todayDubai } from "@/lib/ledger/dates";
 import { aed, toCents } from "@/lib/ledger/money";
 import type { ActionState } from "@/lib/portal/action-state";
 import { isManager, requireStaff } from "@/lib/portal/auth";
@@ -34,6 +35,7 @@ export async function savePayout(id: string | null, _: ActionState, fd: FormData
   const parsed = payoutSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const v = parsed.data;
+  if (v.paid_on > todayDubai()) return { error: "The date can't be in the future.", fieldErrors: { paid_on: "Not in the future" } };
 
   let existing: Payout | null = null;
   if (id) {

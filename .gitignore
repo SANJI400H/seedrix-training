@@ -41,3 +41,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# business data — never commit workbooks, bank statements or exports
+*.xlsx
+*.xls
+*statement*.csv
+/data/

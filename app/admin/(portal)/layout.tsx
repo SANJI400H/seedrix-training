@@ -1,5 +1,5 @@
-import Image from "next/image";
 import Link from "next/link";
+import { Logo } from "@/components/marketing/logo";
 import { PortalNav, type NavItem } from "@/components/portal/nav";
 import { isManager, requireStaff } from "@/lib/portal/auth";
 import { signOut } from "../login/actions";
@@ -19,20 +19,20 @@ export default async function PortalLayout({ children }: { children: React.React
   ];
   return (
     <>
-      <header className="sticky top-0 z-20 border-b border-seedrix-darkest/10 bg-seedrix-white">
+      <header className="sticky top-0 z-20 bg-seedrix-darkest text-seedrix-white">
         <div className="mx-auto max-w-6xl px-4">
           <div className="flex items-center gap-3 py-3">
             <Link href="/admin" className="flex min-w-0 items-center gap-2">
-              <Image src="/brand/seedrix_logo_black.png" alt="Seedrix" width={96} height={26} className="h-6 w-auto" />
-              <span className="hidden text-xs font-bold uppercase tracking-wider text-seedrix-black/50 sm:inline">Staff</span>
+              <Logo variant="white" className="h-6 sm:h-7" />
+              <span className="hidden text-xs font-bold uppercase tracking-wider text-seedrix-mint sm:inline">Staff</span>
             </Link>
             <div className="ms-auto flex items-center gap-3 text-sm">
-              <Link href="/admin/account" className="max-w-[40vw] truncate text-seedrix-black/70 hover:text-seedrix-darkest">
+              <Link href="/admin/account" className="max-w-[40vw] truncate text-seedrix-white/80 hover:text-seedrix-white">
                 {me.staff.full_name}
-                <span className="ms-1 text-xs text-seedrix-black/45">· {me.role}</span>
+                <span className="ms-1 text-xs text-seedrix-white/50">· {me.role}</span>
               </Link>
               <form action={signOut}>
-                <button type="submit" className="text-sm font-bold text-seedrix-green hover:underline">
+                <button type="submit" className="text-sm font-bold text-seedrix-mint hover:underline">
                   Sign out
                 </button>
               </form>

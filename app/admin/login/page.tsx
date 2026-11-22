@@ -1,5 +1,5 @@
-import Image from "next/image";
 import { redirect } from "next/navigation";
+import { Logo } from "@/components/marketing/logo";
 import { ActionForm } from "@/components/portal/action-form";
 import { Field, inputCls, Notice } from "@/components/portal/ui";
 import { getMe } from "@/lib/portal/auth";
@@ -23,9 +23,9 @@ export default async function LoginPage({
 
   return (
     <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-5 px-4 py-10">
-      <div className="flex items-center gap-3">
-        <Image src="/brand/seedrix_logo_black.png" alt="Seedrix" width={120} height={32} className="h-8 w-auto" priority />
-        <span className="text-sm font-bold text-seedrix-black/60">Staff portal</span>
+      <div className="flex items-center gap-3 rounded-[12px] bg-seedrix-darkest px-4 py-3">
+        <Logo variant="white" priority className="h-8 sm:h-8" />
+        <span className="text-sm font-bold text-seedrix-mint">Staff portal</span>
       </div>
       {!configured || sp.error === "not_configured" ? (
         <Notice tone="bad">

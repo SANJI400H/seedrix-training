@@ -19,7 +19,7 @@ export function PortalNav({ items }: { items: NavItem[] }) {
             aria-current={active ? "page" : undefined}
             className={cn(
               "whitespace-nowrap rounded-[6px] px-3 py-2 text-sm font-bold",
-              active ? "bg-seedrix-green/10 text-seedrix-dark-green" : "text-seedrix-black/60 hover:text-seedrix-darkest",
+              active ? "bg-seedrix-white/10 text-seedrix-mint" : "text-seedrix-white/65 hover:text-seedrix-white",
             )}
           >
             {it.label}

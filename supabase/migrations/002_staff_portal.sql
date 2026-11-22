@@ -118,12 +118,15 @@ create table if not exists public.teachers (
   rate_note text,
   notes text,
   active boolean not null default true,
+  import_ref text,
   created_at timestamptz not null default now(),
   created_by uuid,
   updated_at timestamptz not null default now(),
   updated_by uuid
 );
 create index if not exists teachers_name_idx on public.teachers (lower(name));
+-- full (non-partial) unique index so PostgREST upserts can use on_conflict=import_ref; NULLs stay distinct
+create unique index if not exists teachers_import_ref_key on public.teachers (import_ref);
 
 -- ---------------------------------------------------------------------------
 -- leads + notes
@@ -152,7 +155,7 @@ create table if not exists public.leads (
   updated_by uuid
 );
 create unique index if not exists leads_inquiry_id_key on public.leads (inquiry_id) where inquiry_id is not null;
-create unique index if not exists leads_import_ref_key on public.leads (import_ref) where import_ref is not null;
+create unique index if not exists leads_import_ref_key on public.leads (import_ref);
 create index if not exists leads_stage_idx on public.leads (stage);
 create index if not exists leads_follow_up_idx on public.leads (next_follow_up);
 
@@ -194,7 +197,7 @@ create table if not exists public.students (
   updated_at timestamptz not null default now(),
   updated_by uuid
 );
-create unique index if not exists students_import_ref_key on public.students (import_ref) where import_ref is not null;
+create unique index if not exists students_import_ref_key on public.students (import_ref);
 create index if not exists students_name_idx on public.students (lower(name));
 
 -- ---------------------------------------------------------------------------
@@ -666,6 +669,10 @@ grant select, insert, update on public.staff, public.settings, public.teachers, 
 revoke delete, truncate on public.staff, public.settings, public.teachers, public.leads,
   public.lead_notes, public.students, public.client_payments, public.payouts,
   public.bank_lines, public.bank_matches from authenticated, anon;
+-- the portal is never used signed-out: no table privileges at all for anon
+revoke all on public.staff, public.settings, public.teachers, public.leads,
+  public.lead_notes, public.students, public.client_payments, public.payouts,
+  public.bank_lines, public.bank_matches, public.audit_log from anon;
 
 -- helper to (re)create a policy
 create or replace function pg_temp.policy(p_name text, p_table text, p_cmd text, p_using text, p_check text)
