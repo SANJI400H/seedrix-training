@@ -274,13 +274,13 @@ export function suggestMatches(
 }
 
 /** Bank lines with no active match (receipts nobody recorded, payouts nobody logged). */
-export function unmatchedBankLines(lines: BankLineLike[], matches: MatchLike[]) {
+export function unmatchedBankLines<T extends BankLineLike>(lines: T[], matches: MatchLike[]): T[] {
   const matched = new Set(matches.filter((m) => !m.unmatched_at && m.bank_line_id).map((m) => m.bank_line_id));
   return lines.filter((l) => !l.ignored && !matched.has(l.id));
 }
 
 /** Non-void ledger entries with no active bank match. */
-export function unmatchedEntries(entries: LedgerEntry[], matches: MatchLike[]) {
+export function unmatchedEntries<T extends LedgerEntry>(entries: T[], matches: MatchLike[]): T[] {
   const mp = new Set(matches.filter((m) => !m.unmatched_at && m.client_payment_id).map((m) => m.client_payment_id));
   const mo = new Set(matches.filter((m) => !m.unmatched_at && m.payout_id).map((m) => m.payout_id));
   return entries.filter(
