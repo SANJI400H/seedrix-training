@@ -251,7 +251,8 @@ async function write(
     import_ref: t.ref,
   }));
   for (const n of [...new Set(d.students.map((s) => s.teacher).filter(Boolean) as string[])]) {
-    if (!d.findTeacher(n)) teacherRows.push({ name: n, phone: null, nationality: null, emirate: null, subjects: null, rate_note: null, notes: 'Named in "Our Students"; not in the teacher directory', active: true, import_ref: `wb:teacher-name:${norm(n)}` });
+    const nationality = d.students.find((s) => s.teacher === n)?.teacherNationality ?? null;
+    if (!d.findTeacher(n)) teacherRows.push({ name: n, phone: null, nationality, emirate: null, subjects: null, rate_note: null, notes: 'Named in "Our Students"; not in the teacher directory', active: true, import_ref: `wb:teacher-name:${norm(n)}` });
   }
   must(await db.from("teachers").upsert(teacherRows, { onConflict: "import_ref", ignoreDuplicates: true }), "teachers");
   const allTeachers = must(await db.from("teachers").select("id, name, import_ref"), "read teachers") as Array<{ id: string; name: string; import_ref: string | null }>;

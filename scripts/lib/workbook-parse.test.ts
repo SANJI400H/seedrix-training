@@ -3,6 +3,7 @@ import {
   amount,
   mergeLeadsByPhone,
   newDateContext,
+  parseTeacherName,
   parseLeadSheet,
   parseStudentsSheet,
   phone,
@@ -126,5 +127,23 @@ describe("sheets", () => {
     ];
     const s = summariseLedgerSheet("Payments", grid);
     expect(s).toMatchObject({ rows: 2, received: 1700, swappedDates: 1, splitMismatches: 0, firstDate: "2026-08-27", lastDate: "2026-09-01" });
+  });
+});
+
+describe("teacher names", () => {
+  it("strips a trailing country into nationality instead of splitting into two teachers", () => {
+    expect(parseTeacherName("Lyka, Philippines")).toEqual({ name: "Lyka", nationality: "Filipino" });
+    expect(parseTeacherName("Lyka (Philippines)")).toEqual({ name: "Lyka", nationality: "Filipino" });
+    expect(parseTeacherName("Sara Kamal")).toEqual({ name: "Sara Kamal", nationality: null });
+    expect(parseTeacherName("Ahmed, Maths")).toEqual({ name: "Ahmed, Maths", nationality: null });
+    expect(parseTeacherName("—")).toBeNull();
+  });
+
+  it("students keep one teacher name", () => {
+    const grid = [
+      ["Date", "Name", "Number", "Sales", "Teacher", "Course cost", "Paid"],
+      [null, "Suhail", 504432677, "Nana", "Lyka, Philippines", 1500, 750],
+    ];
+    expect(parseStudentsSheet(grid).rows[0]).toMatchObject({ teacher: "Lyka", teacherNationality: "Filipino" });
   });
 });

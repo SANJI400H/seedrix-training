@@ -184,6 +184,71 @@ function col(cols: Map<string, number>, ...names: string[]) {
 
 const at = (row: Cell[], i: number) => (i >= 0 ? (row[i] ?? null) : null);
 
+// ---------------------------------------------------------------------------
+// Teacher names written as "Name, Country" or "Name (Country)"
+// ---------------------------------------------------------------------------
+
+const NATIONALITY: Record<string, string> = {
+  philippines: "Filipino",
+  filipino: "Filipino",
+  filipina: "Filipino",
+  egypt: "Egyptian",
+  egyptian: "Egyptian",
+  syria: "Syrian",
+  syrian: "Syrian",
+  sudan: "Sudanese",
+  sudanese: "Sudanese",
+  morocco: "Moroccan",
+  moroccan: "Moroccan",
+  jordan: "Jordanian",
+  jordanian: "Jordanian",
+  lebanon: "Lebanese",
+  lebanese: "Lebanese",
+  palestine: "Palestinian",
+  palestinian: "Palestinian",
+  tunisia: "Tunisian",
+  tunisian: "Tunisian",
+  algeria: "Algerian",
+  algerian: "Algerian",
+  iraq: "Iraqi",
+  iraqi: "Iraqi",
+  india: "Indian",
+  indian: "Indian",
+  pakistan: "Pakistani",
+  pakistani: "Pakistani",
+  uk: "British",
+  britain: "British",
+  british: "British",
+  usa: "American",
+  america: "American",
+  american: "American",
+  kenya: "Kenyan",
+  kenyan: "Kenyan",
+  "south africa": "South African",
+  "south african": "South African",
+  uae: "Emirati",
+  emirati: "Emirati",
+};
+
+/**
+ * "Lyka, Philippines" -> { name: "Lyka", nationality: "Filipino" }.
+ * Only a trailing country / nationality is split off; any other comma stays part of the name.
+ */
+export function parseTeacherName(raw: string | null | undefined): { name: string; nationality: string | null } | null {
+  const s = text(raw ?? null);
+  if (!s) return null;
+  const paren = s.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  if (paren && NATIONALITY[paren[2].trim().toLowerCase()]) {
+    return { name: paren[1].trim(), nationality: NATIONALITY[paren[2].trim().toLowerCase()] };
+  }
+  const comma = s.lastIndexOf(",");
+  if (comma > 0) {
+    const tail = s.slice(comma + 1).trim().toLowerCase();
+    if (NATIONALITY[tail]) return { name: s.slice(0, comma).trim(), nationality: NATIONALITY[tail] };
+  }
+  return { name: s, nationality: null };
+}
+
 export type LeadRow = {
   ref: string;
   sheet: string;
@@ -247,6 +312,7 @@ export type StudentRow = {
   phoneNote: string | null;
   rep: string | null;
   teacher: string | null;
+  teacherNationality: string | null;
   agreedFee: number | null;
   sheetPaidText: string | null;
   sheetPaid: number | null;
@@ -305,7 +371,8 @@ export function parseStudentsSheet(grid: Grid, year = 2026): { rows: StudentRow[
       phone: ph.e164 ?? ph.raw,
       phoneNote: ph.note,
       rep: text(at(row, c.rep)),
-      teacher: text(at(row, c.teacher)),
+      teacher: parseTeacherName(text(at(row, c.teacher)))?.name ?? null,
+      teacherNationality: parseTeacherName(text(at(row, c.teacher)))?.nationality ?? null,
       agreedFee: fee,
       sheetPaidText: paidText,
       sheetPaid: paid,
