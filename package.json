@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "import:workbook": "tsx scripts/import-workbook.ts"
+    "import:workbook": "tsx scripts/import-workbook.ts",
+    "test:rls": "psql \"${DATABASE_URL:-postgres://postgres@localhost:54322/postgres}\" -v ON_ERROR_STOP=1 -q -f supabase/tests/rls_roles.sql"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
