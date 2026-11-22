@@ -8,6 +8,7 @@ import { notoSansArabic, sansation } from "@/lib/fonts";
 import { Header } from "@/components/marketing/header";
 import { Footer } from "@/components/marketing/footer";
 import { WhatsAppFloat } from "@/components/marketing/whatsapp-float";
+import { AttributionCapture } from "@/components/marketing/attribution-capture";
 import { site } from "@/lib/site";
 
 type Props = {
@@ -67,6 +68,7 @@ export default async function LocaleLayout({ children, params }: Props) {
           <main id="content">{children}</main>
           <Footer />
           <WhatsAppFloat />
+          <AttributionCapture />
         </NextIntlClientProvider>
         <Analytics />
       </body>
