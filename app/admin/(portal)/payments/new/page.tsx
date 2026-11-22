@@ -3,21 +3,26 @@ import { PaymentForm } from "@/components/portal/payment-form";
 import { Card, PageHeader } from "@/components/portal/ui";
 import { paidByStudent } from "@/lib/ledger/balances";
 import { todayDubai } from "@/lib/ledger/dates";
-import { requireStaff } from "@/lib/portal/auth";
-import { loadPayments, loadSettings, loadStaff, loadStudents } from "@/lib/portal/data";
+import { isManager, requireStaff } from "@/lib/portal/auth";
+import { loadInvoices, loadPayments, loadSettings, loadStaff, loadStudents } from "@/lib/portal/data";
+import { aed } from "@/lib/ledger/money";
 
 export const metadata = { title: "Record payment" };
 export const dynamic = "force-dynamic";
 
-export default async function NewPaymentPage({ searchParams }: { searchParams: Promise<{ student?: string }> }) {
+export default async function NewPaymentPage({ searchParams }: { searchParams: Promise<{ student?: string; invoice?: string }> }) {
   const { supabase, me } = await requireStaff();
   const sp = await searchParams;
-  const [students, payments, staff, settings] = await Promise.all([
+  const [students, payments, staff, settings, invoices] = await Promise.all([
     loadStudents(supabase),
     loadPayments(supabase),
     loadStaff(supabase),
     loadSettings(supabase),
+    loadInvoices(supabase),
   ]);
+  const openBills = invoices
+    .filter((i) => i.kind === "bill" && (i.status === "issued" || i.status === "partial") && i.student_id)
+    .map((i) => ({ id: i.id, student_id: i.student_id as string, label: `${i.invoice_number} · due AED ${aed(i.total_aed - i.amount_paid)} of ${aed(i.total_aed)}` }));
   const options = students
     .filter((s) => s.status !== "archived")
     .map((s) => ({
@@ -40,6 +45,9 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
           defaultStudentId={sp.student}
           defaultRepId={me.staff.id}
           today={todayDubai()}
+          canAssign={isManager(me.role)}
+          openBills={openBills}
+          defaultInvoiceId={sp.invoice}
         />
       </Card>
     </>

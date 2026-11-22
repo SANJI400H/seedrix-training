@@ -17,6 +17,8 @@ export type StudentOption = {
   payer_name: string | null;
 };
 
+export type OpenBill = { id: string; student_id: string; label: string };
+
 export function PaymentForm({
   action,
   students,
@@ -26,7 +28,13 @@ export function PaymentForm({
   defaultStudentId,
   defaultRepId,
   today,
+  canAssign = true,
+  openBills = [],
+  defaultInvoiceId,
 }: {
+  canAssign?: boolean;
+  openBills?: OpenBill[];
+  defaultInvoiceId?: string;
   action: (prev: ActionState, fd: FormData) => Promise<ActionState>;
   students: StudentOption[];
   staff: Array<{ id: string; full_name: string }>;
@@ -46,6 +54,7 @@ export function PaymentForm({
   const student = students.find((s) => s.id === studentId);
   const paidBefore = student ? student.paid - (payment && payment.student_id === student.id && !payment.void ? payment.amount : 0) : 0;
   const after = paidBefore + Number(amount || 0);
+  const studentBills = openBills.filter((b) => b.student_id === studentId);
 
   return (
     <ActionForm action={action} submitLabel={payment ? "Save changes" : "Save payment"}>
@@ -146,17 +155,31 @@ export function PaymentForm({
           <FieldError name="received_by_staff_id" />
         </Field>
       ) : null}
-      <Grid>
-        <Field label="Sales rep">
-          <select className={inputCls} name="rep_id" value={repId} onChange={(e) => setRepId(e.target.value)}>
-            <option value="">—</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.full_name}
+      {studentBills.length ? (
+        <Field label="Paying an invoice?" hint="Link it so the invoice shows paid / partly paid. Leave empty to issue a receipt.">
+          <select className={inputCls} name="invoice_id" defaultValue={payment?.invoice_id ?? defaultInvoiceId ?? ""}>
+            <option value="">No — issue a new receipt</option>
+            {studentBills.map((b) => (
+              <option key={b.id} value={b.id}>
+                {b.label}
               </option>
             ))}
           </select>
         </Field>
+      ) : null}
+      <Grid>
+        {canAssign ? (
+          <Field label="Sales rep">
+            <select className={inputCls} name="rep_id" value={repId} onChange={(e) => setRepId(e.target.value)}>
+              <option value="">—</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Bank reference (optional)">
           <input className={inputCls} name="bank_ref" defaultValue={payment?.bank_ref ?? ""} inputMode="numeric" />
         </Field>

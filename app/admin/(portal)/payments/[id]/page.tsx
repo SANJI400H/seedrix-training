@@ -70,14 +70,16 @@ export default async function PaymentPage({
           </span>
         }
       >
-        {!p.void ? (
+        {!p.void || p.invoice_id ? (
           <a href={`/admin/payments/${id}/invoice`} className={linkBtnPrimary}>
-            Invoice PDF
+            Invoice &amp; send
           </a>
         ) : null}
-        <Link href={`/admin/payouts/new?payment=${id}`} className={linkBtnOutline}>
-          Record payout
-        </Link>
+        {manager ? (
+          <Link href={`/admin/payouts/new?payment=${id}`} className={linkBtnOutline}>
+            Record payout
+          </Link>
+        ) : null}
       </PageHeader>
       {sp.saved ? <Notice tone="good">Saved.</Notice> : null}
       {p.duplicate_confirmed ? <Notice tone="warn">Saved after a “possible double entry” warning was confirmed.</Notice> : null}
@@ -98,11 +100,20 @@ export default async function PaymentPage({
             <dd>{p.bank_ref ?? "—"}</dd>
             <dt className="text-seedrix-black/55">Sales rep</dt>
             <dd>{p.rep_id ? staffName.get(p.rep_id) : "—"}</dd>
-            <dt className="text-seedrix-black/55">Split ({p.sales_pct}% sales)</dt>
-            <dd>
-              Teacher <Money value={p.teacher_share} /> · Commission <Money value={p.commission} /> · Academy{" "}
-              <Money value={p.academy} />
-            </dd>
+            {manager ? (
+              <>
+                <dt className="text-seedrix-black/55">Split ({p.sales_pct}% sales)</dt>
+                <dd>
+                  Teacher <Money value={p.teacher_share} /> · Commission <Money value={p.commission} /> · Academy{" "}
+                  <Money value={p.academy} />
+                </dd>
+              </>
+            ) : (
+              <>
+                <dt className="text-seedrix-black/55">Your commission</dt>
+                <dd>{p.rep_id === me.staff.id ? <Money value={p.commission} /> : "—"}</dd>
+              </>
+            )}
             <dt className="text-seedrix-black/55">Note</dt>
             <dd>{p.note ?? "—"}</dd>
             <dt className="text-seedrix-black/55">Recorded</dt>
@@ -134,6 +145,7 @@ export default async function PaymentPage({
         />
       </div>
 
+      {manager ? (
       <section className="flex flex-col gap-2">
         <SectionTitle>Paid out against this payment</SectionTitle>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -181,6 +193,7 @@ export default async function PaymentPage({
           </Table>
         ) : null}
       </section>
+      ) : null}
 
       {canEdit && !p.void ? (
         <Card>
@@ -201,6 +214,7 @@ export default async function PaymentPage({
                 staff={staff.filter((s) => s.active || s.id === p.rep_id).map((s) => ({ id: s.id, full_name: s.full_name }))}
                 salesPct={p.sales_pct}
                 today={todayDubai()}
+                canAssign={manager}
               />
             </div>
           </details>

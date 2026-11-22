@@ -23,6 +23,7 @@ const paymentSchema = z
     payer_name: optText,
     bank_ref: optText,
     rep_id: optUuid,
+    invoice_id: optUuid,
     teacher_share: money("Teacher share"),
     note: optText,
   })
@@ -40,7 +41,7 @@ const paymentSchema = z
   });
 
 export async function savePayment(id: string | null, _: ActionState, fd: FormData): Promise<ActionState> {
-  const { supabase } = await requireStaff();
+  const { supabase, me } = await requireStaff();
   const parsed = paymentSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const v = parsed.data;
@@ -93,6 +94,11 @@ export async function savePayment(id: string | null, _: ActionState, fd: FormDat
       );
     }
   }
+  if (v.invoice_id) {
+    const { data: inv } = await supabase.from("invoices").select("student_id, kind, status").eq("id", v.invoice_id).maybeSingle();
+    if (!inv || inv.kind !== "bill" || inv.student_id !== v.student_id) return { error: "That invoice is not an open invoice for this student." };
+    if (inv.status === "cancelled") return { error: "That invoice was cancelled." };
+  }
   if (warnings.length && !confirmed(fd)) return { confirm: warnings };
 
   // New student inline ----------------------------------------------------
@@ -122,8 +128,10 @@ export async function savePayment(id: string | null, _: ActionState, fd: FormDat
     received_by_staff_id: v.method === "staff" ? v.received_by_staff_id : null,
     payer_name: v.payer_name,
     bank_ref: v.bank_ref,
-    rep_id: v.rep_id,
+    // sales: the database sets the rep to the person recording it
+    rep_id: isManager(me.role) ? v.rep_id : me.staff.id,
     teacher_share: v.teacher_share,
+    ...(v.invoice_id ? { invoice_id: v.invoice_id } : {}),
     note: v.note,
     duplicate_confirmed: duplicateConfirmed,
     overpay_confirmed: overpayConfirmed,
@@ -137,8 +145,8 @@ export async function savePayment(id: string | null, _: ActionState, fd: FormDat
     const { data, error } = await supabase.from("client_payments").insert(row).select("id").single();
     if (error || !data) return dbError(error);
     savedId = data.id;
-    // assign an invoice number now, from the existing SRX sequence
-    await supabase.rpc("create_payment_invoice", { p_payment_id: data.id });
+    // a receipt invoice (SRX sequence) unless it was paid against an existing invoice
+    if (!v.invoice_id) await supabase.rpc("create_payment_invoice", { p_payment_id: data.id });
   }
   revalidatePath("/admin/payments");
   revalidatePath("/admin");

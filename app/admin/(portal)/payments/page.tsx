@@ -4,7 +4,7 @@ import { Empty, Money, PageHeader, Table, Td, Th, inputCls, linkBtnOutline, link
 import { bankState } from "@/lib/ledger/balances";
 import { fmtDate } from "@/lib/ledger/dates";
 import { sum } from "@/lib/ledger/money";
-import { requireStaff } from "@/lib/portal/auth";
+import { isManager, requireStaff } from "@/lib/portal/auth";
 import { byId, fetchAll, loadLedger } from "@/lib/portal/data";
 import { OUTSIDE_ACCOUNT, PAYMENT_METHODS, METHOD_LABEL } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
@@ -15,7 +15,8 @@ export const dynamic = "force-dynamic";
 type SP = { q?: string; rep?: string; bank?: string; method?: string; from?: string; to?: string; void?: string };
 
 export default async function PaymentsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { supabase } = await requireStaff();
+  const { supabase, me } = await requireStaff();
+  const manager = isManager(me.role);
   const sp = await searchParams;
   const { payments, students, staff, matches } = await loadLedger(supabase);
   const studentById = byId(students);
@@ -43,21 +44,23 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
 
   return (
     <>
-      <PageHeader title="Payments in" sub={`${rows.length} shown · AED ${total.toFixed(2)} (void entries excluded from totals)`}>
+      <PageHeader title={manager ? "Payments in" : "Payments from my students"} sub={`${rows.length} shown · AED ${total.toFixed(2)} (void entries excluded from totals)`}>
         <Link href="/admin/payments/new" className={linkBtnPrimary}>
           Record payment
         </Link>
       </PageHeader>
       <form className="flex flex-wrap gap-2" method="get">
         <input name="q" defaultValue={sp.q} placeholder="Search student, payer, invoice, ref" className={cn(inputCls, "flex-[2_1_200px]")} />
-        <select name="rep" defaultValue={sp.rep ?? ""} className={cn(inputCls, "flex-[1_1_130px]")}>
-          <option value="">All reps</option>
-          {staff.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.full_name}
-            </option>
-          ))}
-        </select>
+        {manager ? (
+          <select name="rep" defaultValue={sp.rep ?? ""} className={cn(inputCls, "flex-[1_1_130px]")}>
+            <option value="">All reps</option>
+            {staff.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.full_name}
+              </option>
+            ))}
+          </select>
+        ) : null}
         <select name="bank" defaultValue={sp.bank ?? ""} className={cn(inputCls, "flex-[1_1_130px]")}>
           <option value="">Any bank status</option>
           <option value="none">Not matched</option>
@@ -90,9 +93,15 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
             <Th>Student / payer</Th>
             <Th>Rep</Th>
             <Th num>Amount</Th>
-            <Th num>Teacher</Th>
-            <Th num>Commission</Th>
-            <Th num>Academy</Th>
+            {manager ? (
+              <>
+                <Th num>Teacher</Th>
+                <Th num>Commission</Th>
+                <Th num>Academy</Th>
+              </>
+            ) : (
+              <Th num>Your commission</Th>
+            )}
             <Th>Bank</Th>
           </tr>
         </thead>
@@ -119,15 +128,21 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
                 <Td num>
                   <Money value={p.amount} />
                 </Td>
-                <Td num>
-                  <Money value={p.teacher_share} />
-                </Td>
-                <Td num>
-                  <Money value={p.commission} />
-                </Td>
-                <Td num>
-                  <Money value={p.academy} />
-                </Td>
+                {manager ? (
+                  <>
+                    <Td num>
+                      <Money value={p.teacher_share} />
+                    </Td>
+                    <Td num>
+                      <Money value={p.commission} />
+                    </Td>
+                    <Td num>
+                      <Money value={p.academy} />
+                    </Td>
+                  </>
+                ) : (
+                  <Td num>{p.rep_id === me.staff.id ? <Money value={p.commission} /> : "—"}</Td>
+                )}
                 <Td>
                   <BankPill state={bankState(p, "payment", matches)} isVoid={p.void} />
                 </Td>
