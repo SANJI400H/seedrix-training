@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Card, Empty, PageHeader, Pill, inputCls, linkBtnOutline } from "@/components/portal/ui";
 import { fmtDateTime } from "@/lib/ledger/dates";
 import { TABLE_LABEL, auditChanges, auditLink, auditSummary } from "@/lib/portal/audit";
-import { requireStaff } from "@/lib/portal/auth";
+import { isManager, requireStaff } from "@/lib/portal/auth";
 import { loadStaff, staffByUser } from "@/lib/portal/data";
 import type { AuditEntry } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,8 @@ export default async function ActivityPage({
 }: {
   searchParams: Promise<{ table?: string; actor?: string; money?: string; before?: string }>;
 }) {
-  const { supabase } = await requireStaff();
+  const { supabase, me } = await requireStaff();
+  const manager = isManager(me.role);
   const sp = await searchParams;
   const staff = await loadStaff(supabase);
   const who = staffByUser(staff);
@@ -35,8 +36,12 @@ export default async function ActivityPage({
   return (
     <>
       <PageHeader
-        title="Activity log"
-        sub="Written by the database itself on every change. Nobody — including the owner — can edit or delete it from the app."
+        title={manager ? "Activity log" : "My activity"}
+        sub={
+          manager
+            ? "Written by the database itself on every change. Nobody — including the owner — can edit or delete it from the app."
+            : "Everything you recorded or changed, written by the database itself."
+        }
       />
       <form className="flex flex-wrap gap-2" method="get">
         <select name="table" defaultValue={sp.table ?? ""} className={cn(inputCls, "flex-[1_1_160px]")}>
@@ -47,6 +52,7 @@ export default async function ActivityPage({
             </option>
           ))}
         </select>
+        {manager ? (
         <select name="actor" defaultValue={sp.actor ?? ""} className={cn(inputCls, "flex-[1_1_160px]")}>
           <option value="">Anyone</option>
           {staff
@@ -57,6 +63,7 @@ export default async function ActivityPage({
               </option>
             ))}
         </select>
+        ) : null}
         <label className="flex items-center gap-2 text-sm font-bold">
           <input type="checkbox" name="money" value="1" defaultChecked={!!sp.money} className="h-4 w-4" /> Money only
         </label>

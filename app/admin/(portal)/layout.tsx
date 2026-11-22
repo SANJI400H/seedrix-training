@@ -6,17 +6,35 @@ import { signOut } from "../login/actions";
 
 export default async function PortalLayout({ children }: { children: React.ReactNode }) {
   const { me } = await requireStaff();
-  const items: NavItem[] = [
-    { href: "/admin", label: "Dashboard" },
-    { href: "/admin/leads", label: "Leads" },
-    { href: "/admin/students", label: "Students" },
-    { href: "/admin/payments", label: "Payments in" },
-    { href: "/admin/payouts", label: "Payouts" },
-    ...(isManager(me.role) ? [{ href: "/admin/bank", label: "Bank" }] : []),
-    { href: "/admin/reports", label: "Reports" },
-    { href: "/admin/activity", label: "Activity log" },
-    { href: "/admin/settings", label: "Settings" },
-  ];
+  const manager = isManager(me.role);
+  const items: NavItem[] = manager
+    ? [
+        { href: "/admin", label: "Dashboard" },
+        { href: "/admin/leads", label: "Leads" },
+        { href: "/admin/clients", label: "Clients" },
+        { href: "/admin/students", label: "Students" },
+        { href: "/admin/payments", label: "Payments in" },
+        { href: "/admin/invoices", label: "Invoices" },
+        { href: "/admin/payouts", label: "Payouts" },
+        { href: "/admin/bank", label: "Bank" },
+        { href: "/admin/teachers", label: "Teachers" },
+        { href: "/admin/reports", label: "Reports" },
+        { href: "/admin/activity", label: "Activity log" },
+        { href: "/admin/settings", label: "Settings" },
+      ]
+    : [
+        { href: "/admin", label: "Dashboard" },
+        { href: "/admin/leads", label: "My leads" },
+        { href: "/admin/clients", label: "My clients" },
+        { href: "/admin/students", label: "Students" },
+        { href: "/admin/payments", label: "Payments in" },
+        { href: "/admin/invoices", label: "Invoices" },
+        { href: "/admin/payouts", label: "My commission" },
+        { href: "/admin/teachers", label: "Teachers" },
+        { href: "/admin/performance", label: "My performance" },
+        { href: "/admin/activity", label: "My activity" },
+        { href: "/admin/account", label: "Account" },
+      ];
   return (
     <>
       <header className="sticky top-0 z-20 bg-seedrix-darkest text-seedrix-white">

@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getMe } from "@/lib/portal/auth";
+import { getMe, isManager } from "@/lib/portal/auth";
 import { byId, loadLeads, loadLedger } from "@/lib/portal/data";
-import { monthlyReport, repReport, teacherReport, toCsv } from "@/lib/portal/reports";
+import { attributionReport, monthlyReport, repReport, teacherReport, toCsv } from "@/lib/portal/reports";
 import { METHOD_LABEL, PAYOUT_LABEL } from "@/lib/portal/types";
 import { bankState } from "@/lib/ledger/balances";
 
 export async function GET(request: NextRequest) {
   const { supabase, me } = await getMe();
   if (!supabase || !me?.staff) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+  // company-wide exports are for owner/admin; sales only ever get their own rows via RLS anyway
+  if (!isManager(me.role)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   const sp = request.nextUrl.searchParams;
   const range = { from: sp.get("from") || undefined, to: sp.get("to") || undefined };
   const type = sp.get("type") ?? "monthly";
@@ -25,6 +27,8 @@ export async function GET(request: NextRequest) {
   if (type === "reps") rows = repReport(ledger, await loadLeads(supabase), range).map(withoutId);
   else if (type === "teachers") rows = teacherReport(ledger, range).map(withoutId);
   else if (type === "monthly") rows = monthlyReport(ledger, range);
+  else if (type === "sources" || type === "campaigns")
+    rows = attributionReport(ledger, await loadLeads(supabase), range, type === "sources" ? "source" : "campaign");
   else if (type === "payments")
     rows = ledger.payments
       .filter((p) => inRange(p.paid_on))

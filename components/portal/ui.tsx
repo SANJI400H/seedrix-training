@@ -19,11 +19,11 @@ export function PageHeader({
 }) {
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-64">
         <h1 className="text-xl font-bold text-seedrix-darkest md:text-2xl">{title}</h1>
         {sub ? <p className="mt-1 text-sm text-seedrix-black/60">{sub}</p> : null}
       </div>
-      {children ? <div className="flex flex-wrap gap-2">{children}</div> : null}
+      {children ? <div className="flex flex-wrap items-center gap-2">{children}</div> : null}
     </div>
   );
 }

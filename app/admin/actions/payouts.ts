@@ -7,7 +7,7 @@ import { checkPayout } from "@/lib/ledger/balances";
 import { todayDubai } from "@/lib/ledger/dates";
 import { aed, toCents } from "@/lib/ledger/money";
 import type { ActionState } from "@/lib/portal/action-state";
-import { isManager, requireStaff } from "@/lib/portal/auth";
+import { isManager, requireManager } from "@/lib/portal/auth";
 import { confirmed, dbError, formObject, isoDate, money, optText, optUuid, reqText, zodErrors } from "@/lib/portal/forms";
 import {
   PAYMENT_METHODS,
@@ -31,7 +31,7 @@ const payoutSchema = z.object({
 });
 
 export async function savePayout(id: string | null, _: ActionState, fd: FormData): Promise<ActionState> {
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireManager();
   const parsed = payoutSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const v = parsed.data;
@@ -126,7 +126,7 @@ export async function savePayout(id: string | null, _: ActionState, fd: FormData
 }
 
 export async function voidPayout(id: string, _: ActionState, fd: FormData): Promise<ActionState> {
-  const { supabase } = await requireStaff();
+  const { supabase } = await requireManager();
   const parsed = z.object({ void_reason: reqText("Reason") }).safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
   const { data, error } = await supabase
@@ -142,7 +142,7 @@ export async function voidPayout(id: string, _: ActionState, fd: FormData): Prom
 }
 
 export async function restorePayout(id: string): Promise<ActionState> {
-  const { supabase, me } = await requireStaff();
+  const { supabase, me } = await requireManager();
   if (!isManager(me.role)) return { error: "Only the owner or an admin can restore a voided entry." };
   const { error } = await supabase.from("payouts").update({ void: false }).eq("id", id);
   if (error) return dbError(error);

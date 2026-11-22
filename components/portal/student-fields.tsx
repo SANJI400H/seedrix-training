@@ -1,7 +1,31 @@
 import { Field, Grid, inputCls, textareaCls } from "@/components/portal/ui";
-import { STUDENT_STATUSES, type Staff, type Student, type Teacher } from "@/lib/portal/types";
+import {
+  CURRICULA,
+  CURRICULUM_LABEL,
+  DELIVERY_LABEL,
+  DELIVERY_MODES,
+  STUDENT_STATUSES,
+  type Client,
+  type Staff,
+  type Student,
+  type TeacherPublic,
+} from "@/lib/portal/types";
 
-export function StudentFields({ student, staff, teachers }: { student?: Student; staff: Staff[]; teachers: Teacher[] }) {
+export function StudentFields({
+  student,
+  staff,
+  teachers,
+  clients,
+  canAssign = true,
+  defaultClientId,
+}: {
+  student?: Student;
+  staff: Staff[];
+  teachers: TeacherPublic[];
+  clients: Client[];
+  canAssign?: boolean;
+  defaultClientId?: string;
+}) {
   return (
     <>
       <Grid>
@@ -13,6 +37,46 @@ export function StudentFields({ student, staff, teachers }: { student?: Student;
         </Field>
         <Field label="Payer name (as on the bank transfer)">
           <input className={inputCls} name="payer_name" defaultValue={student?.payer_name ?? ""} />
+        </Field>
+        <Field label="Client (parent / payer)">
+          <select className={inputCls} name="client_id" defaultValue={student?.client_id ?? defaultClientId ?? ""}>
+            <option value="">New client with the payer name below</option>
+            {clients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+                {c.phone ? ` · ${c.phone}` : ""}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Grade">
+          <input className={inputCls} name="grade" defaultValue={student?.grade ?? ""} />
+        </Field>
+        <Field label="School">
+          <input className={inputCls} name="school" defaultValue={student?.school ?? ""} />
+        </Field>
+        <Field label="Curriculum">
+          <select className={inputCls} name="curriculum" defaultValue={student?.curriculum ?? ""}>
+            <option value="">—</option>
+            {CURRICULA.map((c) => (
+              <option key={c} value={c}>
+                {CURRICULUM_LABEL[c]}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Subjects">
+          <input className={inputCls} name="subjects" defaultValue={student?.subjects ?? ""} />
+        </Field>
+        <Field label="Delivery">
+          <select className={inputCls} name="delivery_mode" defaultValue={student?.delivery_mode ?? ""}>
+            <option value="">—</option>
+            {DELIVERY_MODES.map((m) => (
+              <option key={m} value={m}>
+                {DELIVERY_LABEL[m]}
+              </option>
+            ))}
+          </select>
         </Field>
         <Field label="Course">
           <input className={inputCls} name="course" defaultValue={student?.course ?? ""} placeholder="English, 12 classes, at home" />
@@ -29,16 +93,18 @@ export function StudentFields({ student, staff, teachers }: { student?: Student;
             ))}
           </select>
         </Field>
-        <Field label="Sales rep">
-          <select className={inputCls} name="rep_id" defaultValue={student?.rep_id ?? ""}>
-            <option value="">—</option>
-            {staff.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.full_name}
-              </option>
-            ))}
-          </select>
-        </Field>
+        {canAssign ? (
+          <Field label="Sales rep">
+            <select className={inputCls} name="rep_id" defaultValue={student?.rep_id ?? ""}>
+              <option value="">—</option>
+              {staff.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.full_name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        ) : null}
         <Field label="Teacher">
           <select className={inputCls} name="teacher_id" defaultValue={student?.teacher_id ?? ""}>
             <option value="">Not decided</option>

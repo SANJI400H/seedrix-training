@@ -1,6 +1,9 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
+  Client,
+  Invoice,
+  TeacherPublic,
   BankLine,
   BankMatch,
   ClientPayment,
@@ -35,6 +38,13 @@ export async function fetchAll<T>(
 
 export const DEFAULT_SETTINGS: Settings = {
   sales_pct: 80,
+  vat_enabled: false,
+  vat_rate: 5,
+  company_phone: "",
+  company_email: "",
+  round_robin_enabled: false,
+  round_robin_staff_ids: [],
+  notify_new_leads: true,
   company_name: "Seedrix LLC",
   trade_name: "Seedrix Learning",
   address: "Shams Free Zone, Sharjah, UAE",
@@ -47,7 +57,13 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export async function loadSettings(supabase: SupabaseClient): Promise<Settings> {
   const { data } = await supabase.from("settings").select("*").maybeSingle();
-  return { ...DEFAULT_SETTINGS, ...((data as Partial<Settings>) ?? {}), sales_pct: Number(data?.sales_pct ?? 80) };
+  return {
+    ...DEFAULT_SETTINGS,
+    ...((data as Partial<Settings>) ?? {}),
+    sales_pct: Number(data?.sales_pct ?? 80),
+    vat_rate: Number(data?.vat_rate ?? 5),
+    round_robin_staff_ids: (data?.round_robin_staff_ids as string[] | null) ?? [],
+  };
 }
 
 function numify<T>(rows: T[], keys: string[]): T[] {
@@ -58,8 +74,15 @@ function numify<T>(rows: T[], keys: string[]): T[] {
 }
 
 export const loadStaff = (s: SupabaseClient) => fetchAll<Staff>(s, "staff", { order: "full_name", ascending: true });
-export const loadTeachers = (s: SupabaseClient) => fetchAll<Teacher>(s, "teachers", { order: "name", ascending: true });
-export const loadLeads = (s: SupabaseClient) => fetchAll<Lead>(s, "leads", { order: "created_at" });
+/** Safe teacher directory (every role). */
+export const loadTeachers = (s: SupabaseClient) => fetchAll<TeacherPublic>(s, "teachers_public", { order: "name", ascending: true });
+/** Full teacher rows incl. pay/bank/contact — owner/admin only (RLS returns nothing for sales). */
+export const loadTeachersFull = async (s: SupabaseClient) =>
+  numify(await fetchAll<Teacher>(s, "teachers", { order: "name", ascending: true }), ["rate_aed", "rating"]);
+export const loadLeads = (s: SupabaseClient) => fetchAll<Lead>(s, "leads", { order: "last_inbound_at" });
+export const loadClients = (s: SupabaseClient) => fetchAll<Client>(s, "clients", { order: "name", ascending: true });
+export const loadInvoices = async (s: SupabaseClient) =>
+  numify(await fetchAll<Invoice>(s, "invoices", { order: "created_at" }), ["amount_aed", "vat_aed", "total_aed", "amount_paid", "vat_rate"]);
 export const loadStudents = async (s: SupabaseClient) =>
   numify(await fetchAll<Student>(s, "students", { order: "name", ascending: true }), ["agreed_fee", "next_payment_amount"]);
 export const loadPayments = async (s: SupabaseClient) =>

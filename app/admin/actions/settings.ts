@@ -5,56 +5,89 @@ import { headers } from "next/headers";
 import { z } from "zod";
 import type { ActionState } from "@/lib/portal/action-state";
 import { requireManager, requireOwner, requireStaff } from "@/lib/portal/auth";
-import { dbError, formObject, optMoney, optText, reqText, zodErrors } from "@/lib/portal/forms";
+import { dbError, formObject, reqText, zodErrors } from "@/lib/portal/forms";
 import { getSupabaseAdmin } from "@/lib/supabase";
 
-const settingsSchema = z.object({
-  sales_pct: z.coerce.number().min(0, "0–100").max(100, "0–100"),
+const companySchema = z.object({
   company_name: reqText("Company name"),
   trade_name: reqText("Trading name"),
   address: reqText("Address"),
   license_no: z.string().max(100).optional().transform((v) => v ?? ""),
-  bank_name: z.string().max(100).optional().transform((v) => v ?? ""),
-  iban: z.string().max(64).optional().transform((v) => v ?? ""),
   trn: z.string().max(64).optional().transform((v) => v ?? ""),
+  company_phone: z.string().max(64).optional().transform((v) => v ?? ""),
+  company_email: z.string().max(200).optional().transform((v) => v ?? ""),
+  bank_name: z.string().max(100).optional().transform((v) => v ?? ""),
+  iban: z.string().max(64).optional().transform((v) => (v ?? "").replace(/\s+/g, " ").trim()),
   invoice_footer: z.string().max(1000).optional().transform((v) => v ?? ""),
 });
 
-export async function saveSettings(_: ActionState, fd: FormData): Promise<ActionState> {
+async function updateSettings(row: Record<string, unknown>, message: string): Promise<ActionState> {
   const { supabase } = await requireOwner();
-  const parsed = settingsSchema.safeParse(formObject(fd));
-  if (!parsed.success) return zodErrors(parsed.error);
-  const { data, error } = await supabase.from("settings").update(parsed.data).eq("id", true).select("id");
+  const { data, error } = await supabase.from("settings").update(row).eq("id", true).select("id");
   if (error) return dbError(error);
   if (!data?.length) return { error: "Only the owner can change settings." };
   revalidatePath("/admin", "layout");
-  return { ok: true, message: "Settings saved. The split % applies to payments recorded from now on." };
+  return { ok: true, message };
 }
 
-const teacherSchema = z.object({
-  name: reqText("Name"),
-  phone: optText,
-  nationality: optText,
-  emirate: optText,
-  subjects: optText,
-  rate_aed: optMoney,
-  rate_note: optText,
-  notes: optText,
-  active: z.enum(["true", "false"]).default("true").transform((v) => v === "true"),
+export async function saveCompany(_: ActionState, fd: FormData): Promise<ActionState> {
+  await requireOwner();
+  const parsed = companySchema.safeParse(formObject(fd));
+  if (!parsed.success) return zodErrors(parsed.error);
+  return updateSettings(parsed.data, "Company and invoice details saved.");
+}
+
+const splitSchema = z.object({
+  sales_pct: z.coerce.number().min(0, "0–100").max(100, "0–100"),
+  vat_enabled: z.enum(["true", "false"]).default("false").transform((v) => v === "true"),
+  vat_rate: z.coerce.number().min(0).max(100).default(5),
 });
 
-export async function saveTeacher(id: string | null, _: ActionState, fd: FormData): Promise<ActionState> {
-  const { supabase } = await requireManager();
-  const parsed = teacherSchema.safeParse(formObject(fd));
+export async function saveSplit(_: ActionState, fd: FormData): Promise<ActionState> {
+  await requireOwner();
+  const parsed = splitSchema.safeParse(formObject(fd));
   if (!parsed.success) return zodErrors(parsed.error);
-  const q = id
-    ? supabase.from("teachers").update(parsed.data).eq("id", id).select("id")
-    : supabase.from("teachers").insert(parsed.data).select("id");
-  const { data, error } = await q;
-  if (error) return dbError(error);
-  if (!data?.length) return { error: "Only the owner or an admin can edit teachers." };
-  revalidatePath("/admin/settings");
-  return { ok: true, message: id ? "Teacher updated" : "Teacher added" };
+  return updateSettings(parsed.data, "Saved. The split % applies to payments recorded from now on; VAT applies to invoices issued from now on (only when a TRN is set).");
+}
+
+export async function saveLeadRouting(_: ActionState, fd: FormData): Promise<ActionState> {
+  await requireOwner();
+  const ids = fd.getAll("round_robin_staff_ids").map(String).filter((v) => z.string().uuid().safeParse(v).success);
+  const enabled = fd.get("round_robin_enabled") === "true";
+  if (enabled && !ids.length) return { error: "Choose at least one rep for the rotation." };
+  return updateSettings(
+    { round_robin_enabled: enabled, round_robin_staff_ids: ids, notify_new_leads: fd.get("notify_new_leads") === "true" },
+    enabled ? `Round-robin on for ${ids.length} rep(s).` : "Round-robin off: new website and ad leads go to the Unassigned queue.",
+  );
+}
+
+/** Posts a sample lead to our own ingest endpoint, exactly like n8n would. */
+export async function sendTestLead(): Promise<ActionState> {
+  await requireManager();
+  const secret = process.env.LEAD_INGEST_SECRET;
+  if (!secret) return { error: "Set LEAD_INGEST_SECRET first." };
+  const url = `${await siteOrigin()}/api/leads/ingest`;
+  const stamp = new Date().toISOString().slice(11, 19);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-lead-secret": secret },
+      body: JSON.stringify({
+        name: `Test lead ${stamp}`,
+        phone: `+97150${String(Date.now()).slice(-7)}`,
+        source: "other",
+        campaign: "Portal test",
+        notes: "Sent from Settings → Lead sources. Safe to mark as lost.",
+      }),
+      cache: "no-store",
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: `Ingest answered ${res.status}: ${body.error ?? "error"}` };
+    revalidatePath("/admin/leads");
+    return { ok: true, message: `Test lead ${body.status ?? "created"} (${url}).` };
+  } catch (e) {
+    return { error: `Couldn't reach ${url}: ${e instanceof Error ? e.message : "error"}` };
+  }
 }
 
 async function siteOrigin() {

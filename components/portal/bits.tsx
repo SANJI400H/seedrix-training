@@ -1,3 +1,4 @@
+import { STATUS_LABEL } from "@/lib/ledger/invoice";
 import { aed } from "@/lib/ledger/money";
 import type { BankState } from "@/lib/ledger/balances";
 import { METHOD_LABEL, OUTSIDE_ACCOUNT, STAGE_LABEL, type LeadStage, type PaymentMethod } from "@/lib/portal/types";
@@ -66,4 +67,9 @@ export function ContactLinks({ phone }: { phone: string | null | undefined }) {
       ) : null}
     </span>
   );
+}
+
+export function InvoiceStatusPill({ status }: { status: string }) {
+  const tone = status === "paid" ? "good" : status === "partial" ? "warn" : status === "cancelled" ? "muted" : "bad";
+  return <Pill tone={tone}>{STATUS_LABEL[status] ?? status}</Pill>;
 }

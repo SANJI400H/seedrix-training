@@ -10,7 +10,7 @@ import { Card, Field, Money, Notice, PageHeader, Pill, SectionTitle, inputCls } 
 import { checkPayout } from "@/lib/ledger/balances";
 import { fmtDate, fmtDateTime, todayDubai } from "@/lib/ledger/dates";
 import { aed } from "@/lib/ledger/money";
-import { isManager, requireStaff } from "@/lib/portal/auth";
+import { requireManager } from "@/lib/portal/auth";
 import { loadBankContext } from "@/lib/portal/bank-view";
 import { byId, loadLedger, staffByUser } from "@/lib/portal/data";
 import { paymentOptions, payoutLikes } from "@/lib/portal/payout-options";
@@ -27,8 +27,9 @@ export default async function PayoutPage({
 }) {
   const { id } = await params;
   const sp = await searchParams;
-  const { supabase, me } = await requireStaff();
-  const manager = isManager(me.role);
+  // only owner/admin manage payouts; sales see their commission on the list page
+  const { supabase } = await requireManager();
+  const manager = true;
   const ledger = await loadLedger(supabase);
   const o = ledger.payouts.find((x) => x.id === id);
   if (!o) notFound();

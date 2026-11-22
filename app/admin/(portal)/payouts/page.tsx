@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { BankPill } from "@/components/portal/bits";
-import { Empty, Money, PageHeader, Pill, Table, Td, Th, inputCls, linkBtnOutline, linkBtnPrimary } from "@/components/portal/ui";
+import { Empty, Kpi, Money, PageHeader, Pill, Table, Td, Th, inputCls, linkBtnOutline, linkBtnPrimary } from "@/components/portal/ui";
 import { bankState, payoutsOverDue } from "@/lib/ledger/balances";
 import { fmtDate } from "@/lib/ledger/dates";
 import { aed, sum } from "@/lib/ledger/money";
-import { requireStaff } from "@/lib/portal/auth";
+import { isManager, requireStaff } from "@/lib/portal/auth";
 import { byId, loadLedger } from "@/lib/portal/data";
 import { PAYOUT_LABEL, PAYOUT_TYPES } from "@/lib/portal/types";
 import { cn } from "@/lib/utils";
@@ -15,8 +15,9 @@ export const dynamic = "force-dynamic";
 type SP = { q?: string; type?: string; bank?: string; linked?: string; over?: string; void?: string };
 
 export default async function PayoutsPage({ searchParams }: { searchParams: Promise<SP> }) {
-  const { supabase } = await requireStaff();
+  const { supabase, me } = await requireStaff();
   const sp = await searchParams;
+  if (!isManager(me.role)) return <MyCommission />;
   const ledger = await loadLedger(supabase);
   const { payouts, payments, students, matches } = ledger;
   const paymentById = byId(payments);
@@ -130,6 +131,89 @@ export default async function PayoutsPage({ searchParams }: { searchParams: Prom
               </Td>
             </tr>
           )}
+        </tbody>
+      </Table>
+    </>
+  );
+}
+
+/** Sales: commission due on their students' payments vs commission paid to them. */
+async function MyCommission() {
+  const { supabase, me } = await requireStaff();
+  const ledger = await loadLedger(supabase);
+  const mine = ledger.payments.filter((p) => !p.void && p.rep_id === me.staff.id);
+  const due = sum(mine.map((p) => p.commission));
+  const paidOut = ledger.payouts.filter((o) => !o.void && o.type === "commission" && o.staff_id === me.staff.id);
+  const paid = sum(paidOut.map((o) => o.amount));
+  const students = byId(ledger.students);
+  return (
+    <>
+      <PageHeader title="My commission" sub="Commission is worked out on each payment from your students. Only the owner or an admin can pay it out." />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <Kpi label="Commission earned" value={due} note={`${mine.length} payment(s)`} />
+        <Kpi label="Paid to you" value={paid} />
+        <Kpi hero label="Still owed to you" value={Math.round((due - paid) * 100) / 100} />
+      </div>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Date</Th>
+            <Th>Student</Th>
+            <Th num>Payment</Th>
+            <Th num>Your commission</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {mine.map((p) => (
+            <tr key={p.id}>
+              <Td>
+                <Link href={`/admin/payments/${p.id}`} className="font-bold hover:underline">
+                  {fmtDate(p.paid_on)}
+                </Link>
+              </Td>
+              <Td>{students.get(p.student_id)?.name}</Td>
+              <Td num>
+                <Money value={p.amount} />
+              </Td>
+              <Td num>
+                <Money value={p.commission} />
+              </Td>
+            </tr>
+          ))}
+          {!mine.length ? (
+            <tr>
+              <Td colSpan={4} className="text-center text-seedrix-black/55">
+                No payments from your students yet.
+              </Td>
+            </tr>
+          ) : null}
+        </tbody>
+      </Table>
+      <Table>
+        <thead>
+          <tr>
+            <Th>Paid on</Th>
+            <Th>Note</Th>
+            <Th num>Amount paid to you</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {paidOut.map((o) => (
+            <tr key={o.id}>
+              <Td>{fmtDate(o.paid_on)}</Td>
+              <Td>{o.note ?? "—"}</Td>
+              <Td num>
+                <Money value={o.amount} />
+              </Td>
+            </tr>
+          ))}
+          {!paidOut.length ? (
+            <tr>
+              <Td colSpan={3} className="text-center text-seedrix-black/55">
+                No commission paid out yet.
+              </Td>
+            </tr>
+          ) : null}
         </tbody>
       </Table>
     </>

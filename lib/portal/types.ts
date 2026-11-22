@@ -12,6 +12,13 @@ export type Staff = {
 
 export type Settings = {
   sales_pct: number;
+  vat_enabled: boolean;
+  vat_rate: number;
+  company_phone: string;
+  company_email: string;
+  round_robin_enabled: boolean;
+  round_robin_staff_ids: string[];
+  notify_new_leads: boolean;
   company_name: string;
   trade_name: string;
   address: string;
@@ -22,21 +29,74 @@ export type Settings = {
   invoice_footer: string;
 };
 
-export type Teacher = {
+/** Safe teacher fields every staff member may see (public.teachers_public). */
+export type TeacherPublic = {
+  id: string;
+  name: string;
+  nationality: string | null;
+  languages: string | null;
+  subjects: string | null;
+  curricula: string | null;
+  grade_range: string | null;
+  emirate: string | null;
+  areas: string | null;
+  delivery_modes: string | null;
+  availability: string | null;
+  bio: string | null;
+  status: "active" | "onboarding" | "inactive";
+  active: boolean;
+  photo_path: string | null;
+};
+
+/** Full teacher row (owner/admin only). */
+export type Teacher = TeacherPublic & {
+  phone: string | null;
+  email: string | null;
+  rate_aed: number | null;
+  rate_note: string | null;
+  pay_unit: "hour" | "class" | "course" | null;
+  bank_name: string | null;
+  iban: string | null;
+  rating: number | null;
+  notes: string | null;
+};
+
+export const TEACHER_STATUSES = ["active", "onboarding", "inactive"] as const;
+export const CURRICULA = ["american", "british", "ministry", "ib", "indian", "other"] as const;
+export type Curriculum = (typeof CURRICULA)[number];
+export const CURRICULUM_LABEL: Record<Curriculum, string> = {
+  american: "American",
+  british: "British",
+  ministry: "Ministry (UAE)",
+  ib: "IB",
+  indian: "Indian",
+  other: "Other",
+};
+export const DELIVERY_MODES = ["home", "online", "centre"] as const;
+export type DeliveryMode = (typeof DELIVERY_MODES)[number];
+export const DELIVERY_LABEL: Record<DeliveryMode, string> = { home: "At home", online: "Online", centre: "At the centre" };
+
+export type Client = {
   id: string;
   name: string;
   phone: string | null;
-  nationality: string | null;
+  phone2: string | null;
+  whatsapp: string | null;
+  email: string | null;
   emirate: string | null;
-  subjects: string | null;
-  rate_aed: number | null;
-  rate_note: string | null;
+  area: string | null;
+  address: string | null;
+  preferred_language: string | null;
+  source: string | null;
+  lead_id: string | null;
+  rep_id: string | null;
   notes: string | null;
-  active: boolean;
+  created_at: string;
 };
 
-export const LEAD_SOURCES = ["website", "social", "iEnglish", "referral", "walk-in", "other"] as const;
-export type LeadSource = (typeof LEAD_SOURCES)[number];
+export { LEAD_SOURCES, SOURCE_LABEL } from "@/lib/leads/source";
+import type { LeadSource } from "@/lib/leads/source";
+export type { LeadSource };
 
 export const LEAD_STAGES = ["new", "contacted", "trial_booked", "trial_done", "enrolled", "lost"] as const;
 export type LeadStage = (typeof LEAD_STAGES)[number];
@@ -50,14 +110,6 @@ export const STAGE_LABEL: Record<LeadStage, string> = {
   lost: "Lost",
 };
 
-export const SOURCE_LABEL: Record<LeadSource, string> = {
-  website: "Website",
-  social: "Social",
-  iEnglish: "iEnglish",
-  referral: "Referral",
-  "walk-in": "Walk-in",
-  other: "Other",
-};
 
 export type Lead = {
   id: string;
@@ -74,6 +126,20 @@ export type Lead = {
   lost_reason: string | null;
   inquiry_id: string | null;
   first_contact_on: string | null;
+  campaign: string | null;
+  ad_set: string | null;
+  ad_name: string | null;
+  form_name: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
+  utm_content: string | null;
+  utm_term: string | null;
+  landing_page: string | null;
+  referrer: string | null;
+  received_at: string;
+  last_inbound_at: string;
+  viewed_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -93,6 +159,12 @@ export type StudentStatus = (typeof STUDENT_STATUSES)[number];
 export type Student = {
   id: string;
   lead_id: string | null;
+  client_id: string | null;
+  grade: string | null;
+  school: string | null;
+  curriculum: Curriculum | null;
+  subjects: string | null;
+  delivery_mode: DeliveryMode | null;
   name: string;
   phone: string | null;
   payer_name: string | null;
@@ -223,6 +295,13 @@ export type AuditEntry = {
 export type Invoice = {
   id: string;
   invoice_number: string;
+  kind: "receipt" | "bill" | null;
+  student_id: string | null;
+  client_id: string | null;
+  amount_paid: number;
+  vat_rate: number;
+  due_date: string | null;
+  issued_by: string | null;
   locale: string;
   service: string;
   description: string | null;

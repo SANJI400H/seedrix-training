@@ -1,7 +1,19 @@
 import { Field, Grid, inputCls, textareaCls } from "@/components/portal/ui";
 import { LEAD_SOURCES, LEAD_STAGES, SOURCE_LABEL, STAGE_LABEL, type Lead, type Staff } from "@/lib/portal/types";
 
-export function LeadFields({ lead, staff, withNote, defaultRepId }: { lead?: Lead; staff: Staff[]; withNote?: boolean; defaultRepId?: string }) {
+export function LeadFields({
+  lead,
+  staff,
+  withNote,
+  defaultRepId,
+  canAssign = true,
+}: {
+  lead?: Lead;
+  staff: Staff[];
+  withNote?: boolean;
+  defaultRepId?: string;
+  canAssign?: boolean;
+}) {
   return (
     <>
       <Grid>
@@ -18,7 +30,7 @@ export function LeadFields({ lead, staff, withNote, defaultRepId }: { lead?: Lea
           <input className={inputCls} name="emirate" defaultValue={lead?.emirate ?? ""} placeholder="Sharjah, Ajman…" />
         </Field>
         <Field label="Source">
-          <select className={inputCls} name="source" defaultValue={lead?.source ?? "social"}>
+          <select className={inputCls} name="source" defaultValue={lead?.source ?? "referral"}>
             {LEAD_SOURCES.map((s) => (
               <option key={s} value={s}>
                 {SOURCE_LABEL[s]}
@@ -26,17 +38,22 @@ export function LeadFields({ lead, staff, withNote, defaultRepId }: { lead?: Lea
             ))}
           </select>
         </Field>
-        <Field label="Assigned rep">
-          <select className={inputCls} name="assigned_rep_id" defaultValue={lead?.assigned_rep_id ?? defaultRepId ?? ""}>
-            <option value="">Unassigned</option>
-            {staff
-              .filter((s) => s.active || s.id === lead?.assigned_rep_id)
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.full_name}
-                </option>
-              ))}
-          </select>
+        {canAssign ? (
+          <Field label="Assigned rep">
+            <select className={inputCls} name="assigned_rep_id" defaultValue={lead?.assigned_rep_id ?? defaultRepId ?? ""}>
+              <option value="">Unassigned</option>
+              {staff
+                .filter((s) => s.active || s.id === lead?.assigned_rep_id)
+                .map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.full_name}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        ) : null}
+        <Field label="Campaign / ad (if known)">
+          <input className={inputCls} name="campaign" defaultValue={lead?.campaign ?? ""} />
         </Field>
         <Field label="Interest / course">
           <input className={inputCls} name="interest" defaultValue={lead?.interest ?? ""} placeholder="English, maths at home…" />

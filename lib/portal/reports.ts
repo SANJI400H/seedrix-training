@@ -159,3 +159,32 @@ export function toCsv(rows: Array<Record<string, unknown>>): string {
   };
   return [cols.join(","), ...rows.map((r) => cols.map((c) => esc(r[c])).join(","))].join("\r\n");
 }
+
+export type SourceRow = { key: string; leads: number; trials: number; enrolments: number; revenue: number };
+
+/** Leads, trials, enrolments and revenue grouped by lead source or campaign. */
+export function attributionReport(ledger: Ledger, leads: Lead[], r: Range, by: "source" | "campaign"): SourceRow[] {
+  const L = leads.filter((l) => inRange((l.received_at ?? l.created_at).slice(0, 10), r));
+  const keyOf = (l: Lead) => (by === "source" ? l.source : (l.campaign ?? "(no campaign)"));
+  const leadById = new Map(leads.map((l) => [l.id, l]));
+  const map = new Map<string, SourceRow>();
+  const get = (k: string) => {
+    let x = map.get(k);
+    if (!x) map.set(k, (x = { key: k, leads: 0, trials: 0, enrolments: 0, revenue: 0 }));
+    return x;
+  };
+  for (const l of L) {
+    const x = get(keyOf(l));
+    x.leads++;
+    if (["trial_booked", "trial_done", "enrolled"].includes(l.stage)) x.trials++;
+    if (l.stage === "enrolled") x.enrolments++;
+  }
+  const studentLead = new Map(ledger.students.map((s) => [s.id, s.lead_id ? leadById.get(s.lead_id) : undefined]));
+  for (const p of ledger.payments) {
+    if (p.void || !inRange(p.paid_on, r)) continue;
+    const l = studentLead.get(p.student_id);
+    const x = get(l ? keyOf(l) : by === "source" ? "(no lead linked)" : "(no campaign)");
+    x.revenue = fromCents(toCents(x.revenue) + toCents(p.amount));
+  }
+  return [...map.values()].sort((a, b) => b.revenue - a.revenue || b.leads - a.leads);
+}

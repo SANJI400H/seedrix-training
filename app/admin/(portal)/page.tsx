@@ -7,6 +7,8 @@ import { fmtDate, monthStartDubai, todayDubai } from "@/lib/ledger/dates";
 import { aed, toCents } from "@/lib/ledger/money";
 import { isManager, requireStaff } from "@/lib/portal/auth";
 import { byId, loadBankLines, loadLeads, loadLedger } from "@/lib/portal/data";
+import { isNewLead } from "@/lib/portal/leads";
+import { StagePill } from "@/components/portal/bits";
 import { METHOD_LABEL, OUTSIDE_ACCOUNT, PAYOUT_LABEL } from "@/lib/portal/types";
 
 export const metadata = { title: "Dashboard" };
@@ -18,6 +20,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const { supabase, me } = await requireStaff();
   const sp = await searchParams;
   const manager = isManager(me.role);
+  if (!manager) return <SalesDashboard denied={!!sp.denied} />;
   const [ledger, leads, bankLines] = await Promise.all([
     loadLedger(supabase),
     loadLeads(supabase),
@@ -32,6 +35,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const livePayments = payments.filter((p) => !p.void);
   const livePayouts = payouts.filter((o) => !o.void);
   const inThisMonth = livePayments.filter((p) => p.paid_on >= monthStart).reduce((a, p) => a + toCents(p.amount), 0) / 100;
+  const newLeads = leads.filter(isNewLead);
+  const unassigned = leads.filter((l) => !l.assigned_rep_id && l.stage !== "lost" && l.stage !== "enrolled");
   const followUps = leads.filter(
     (l) => l.next_follow_up && l.next_follow_up <= today && l.stage !== "enrolled" && l.stage !== "lost",
   );
@@ -80,6 +85,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
       text: `${overdue.length} client${overdue.length > 1 ? "s have" : " has"} an overdue balance (AED ${aed(overdue.reduce((a, o) => a + o.balance, 0))}).`,
       href: "/admin/students?filter=overdue",
     });
+  if (unassigned.length)
+    items.push({ tone: "warn", text: `${unassigned.length} open lead${unassigned.length > 1 ? "s are" : " is"} not assigned to a rep (${newLeads.length} new).`, href: "/admin/leads?queue=unassigned&view=table" });
   if (manager) {
     const unmatchedCredits = unmatchedBankLines(bankLines, matches).filter((l) => l.amount > 0);
     if (unmatchedCredits.length)
@@ -221,6 +228,103 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           )}
         </Card>
       </section>
+    </>
+  );
+}
+
+/** Sales dashboard: only their own follow-ups, new leads, students with balances and commission. */
+async function SalesDashboard({ denied }: { denied: boolean }) {
+  const { supabase, me } = await requireStaff();
+  const [ledger, leads] = await Promise.all([loadLedger(supabase), loadLeads(supabase)]);
+  const today = todayDubai();
+  const followUps = leads
+    .filter((l) => l.next_follow_up && l.next_follow_up <= today && l.stage !== "enrolled" && l.stage !== "lost")
+    .sort((a, b) => (a.next_follow_up ?? "").localeCompare(b.next_follow_up ?? ""));
+  const fresh = leads.filter(isNewLead);
+  const owing = ledger.students
+    .filter((s) => s.status !== "archived" && s.status !== "cancelled")
+    .map((s) => ({ s, balance: s.agreed_fee - ledger.payments.filter((p) => !p.void && p.student_id === s.id).reduce((a, p) => a + p.amount, 0) }))
+    .filter((x) => x.balance > 0.004)
+    .sort((a, b) => (a.s.next_payment_date ?? "9999").localeCompare(b.s.next_payment_date ?? "9999"));
+  const myPays = ledger.payments.filter((p) => !p.void && p.rep_id === me.staff.id);
+  const earned = myPays.reduce((a, p) => a + toCents(p.commission), 0) / 100;
+  const paid = ledger.payouts.filter((o) => !o.void && o.type === "commission" && o.staff_id === me.staff.id).reduce((a, o) => a + toCents(o.amount), 0) / 100;
+  const monthStart = monthStartDubai();
+  const monthIn = ledger.payments.filter((p) => !p.void && p.paid_on >= monthStart).reduce((a, p) => a + toCents(p.amount), 0) / 100;
+
+  return (
+    <>
+      <PageHeader title={`Hello ${me.staff.full_name}`} sub="Your leads, your students and your commission.">
+        <Link href="/admin/leads/new" className={linkBtnOutline}>
+          Add lead
+        </Link>
+        <Link href="/admin/payments/new" className={linkBtnPrimary}>
+          Record payment
+        </Link>
+      </PageHeader>
+      {denied ? <Notice tone="bad">That page is for the owner or an admin.</Notice> : null}
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+        <Link href="/admin/leads?due=1" className="block">
+          <div className="h-full rounded-[12px] border border-seedrix-darkest/10 bg-seedrix-white p-3">
+            <div className="text-[11px] font-bold uppercase tracking-wider text-seedrix-black/55">Follow-ups due</div>
+            <div className={`mt-1 font-mono text-lg font-bold md:text-xl ${followUps.length ? "text-amber-700" : ""}`}>{followUps.length}</div>
+            <div className="mt-0.5 text-xs text-seedrix-black/55">{fresh.length} new lead(s) not opened</div>
+          </div>
+        </Link>
+        <Kpi label="Your students still owe" value={owing.reduce((a, x) => a + x.balance, 0)} note={`${owing.length} student(s)`} href="/admin/students?filter=owes" />
+        <Kpi label="Paid in this month" value={monthIn} note="From your students" href="/admin/payments" />
+        <Kpi hero label="Commission still owed to you" value={Math.round((earned - paid) * 100) / 100} note={`Earned ${aed(earned)} · paid ${aed(paid)}`} href="/admin/payouts" />
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <SectionTitle>Follow-ups due today</SectionTitle>
+          <ul className="mt-2 divide-y divide-seedrix-darkest/10">
+            {followUps.slice(0, 12).map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <Link href={`/admin/leads/${l.id}`} className="min-w-0 truncate font-bold hover:underline">
+                  {l.name}
+                </Link>
+                <span className={l.next_follow_up! < today ? "shrink-0 text-red-700" : "shrink-0 text-seedrix-black/60"}>{fmtDate(l.next_follow_up)}</span>
+              </li>
+            ))}
+            {!followUps.length ? <li className="py-2 text-sm text-seedrix-black/55">Nothing due. Nice.</li> : null}
+          </ul>
+        </Card>
+        <Card>
+          <SectionTitle>New leads for you</SectionTitle>
+          <ul className="mt-2 divide-y divide-seedrix-darkest/10">
+            {fresh.slice(0, 12).map((l) => (
+              <li key={l.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <Link href={`/admin/leads/${l.id}`} className="min-w-0 truncate font-bold hover:underline">
+                  {l.name}
+                </Link>
+                <StagePill stage={l.stage} />
+              </li>
+            ))}
+            {!fresh.length ? <li className="py-2 text-sm text-seedrix-black/55">No new leads waiting.</li> : null}
+          </ul>
+        </Card>
+      </div>
+      <Card>
+        <SectionTitle>Your students with a balance due</SectionTitle>
+        <ul className="mt-2 divide-y divide-seedrix-darkest/10">
+          {owing.slice(0, 15).map(({ s, balance }) => (
+            <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm">
+              <Link href={`/admin/students/${s.id}`} className="min-w-0 truncate font-bold hover:underline">
+                {s.name}
+              </Link>
+              <span className="flex items-center gap-2">
+                <span className={s.next_payment_date && s.next_payment_date < today ? "text-red-700" : "text-seedrix-black/60"}>
+                  {s.next_payment_date ? `due ${fmtDate(s.next_payment_date)}` : ""}
+                </span>
+                <Pill tone="warn">AED {aed(balance)}</Pill>
+              </span>
+            </li>
+          ))}
+          {!owing.length ? <li className="py-2 text-sm text-seedrix-black/55">All your students are paid up.</li> : null}
+        </ul>
+      </Card>
     </>
   );
 }
