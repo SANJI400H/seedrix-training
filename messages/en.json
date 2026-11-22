@@ -315,7 +315,16 @@
     "alreadyPaid": "This invoice is already paid.",
     "successTitle": "Payment received",
     "successBody": "Your official Seedrix invoice has been emailed to you.",
-    "downloadInvoice": "Download invoice"
+    "downloadInvoice": "Download invoice",
+    "statusPaid": "Paid",
+    "statusPartial": "Partly paid",
+    "statusUnpaid": "Unpaid",
+    "statusCancelled": "Cancelled",
+    "downloadPdf": "Download invoice (PDF)",
+    "amountPaid": "Paid",
+    "amountDue": "Balance due",
+    "invoiceStudent": "Student",
+    "payBalanceBank": "Pay the balance by bank transfer to the account on the PDF, quoting the invoice number."
   },
   "termsPage": {
     "title": "Terms & Conditions",

@@ -315,7 +315,16 @@
     "alreadyPaid": "هذه الفاتورة مدفوعة مسبقاً.",
     "successTitle": "تم استلام الدفع",
     "successBody": "أُرسلت فاتورة سيدركس الرسمية إلى بريدك.",
-    "downloadInvoice": "تنزيل الفاتورة"
+    "downloadInvoice": "تنزيل الفاتورة",
+    "statusPaid": "مدفوعة",
+    "statusPartial": "مدفوعة جزئياً",
+    "statusUnpaid": "غير مدفوعة",
+    "statusCancelled": "ملغاة",
+    "downloadPdf": "تحميل الفاتورة (PDF)",
+    "amountPaid": "المدفوع",
+    "amountDue": "المبلغ المتبقي",
+    "invoiceStudent": "الطالب",
+    "payBalanceBank": "ادفع المبلغ المتبقي بتحويل بنكي إلى الحساب المذكور في ملف PDF مع ذكر رقم الفاتورة."
   },
   "termsPage": {
     "title": "الشروط والأحكام",
